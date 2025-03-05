@@ -24,7 +24,7 @@ Before starting the installation process, ensure you have:
 
 2. **Run the installation script:**
    ```bash
-   bash suitecrm_install.sh
+   bash install_suitecrm_7.12.sh
    ```
 
    The script will prompt for the database username and password:
@@ -36,8 +36,6 @@ Before starting the installation process, ensure you have:
      ```bash
      sudo mysql_secure_installation
      ```
-   - Complete the prompts as specified in the [installation guide](https://github.com/motaviegas/SuiteCRM_Script/blob/main/installation%20guide).
-
 4. **Access SuiteCRM:**
    - Open a web browser and navigate to: `http://<your-server-ip-or-domain>`
    - Complete the web-based setup using the credentials provided by the script.
