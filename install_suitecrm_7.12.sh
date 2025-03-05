@@ -197,15 +197,31 @@ install_suitecrm() {
     # System updates and essential packages
     echo "Updating and installing essential packages..."
     sudo apt update && sudo apt upgrade -y
-    sudo apt install unzip wget apache2 dialog -y
+    sudo apt install unzip wget curl apache2 dialog -y
 
     # PHP installation and configuration
     echo "Updating and installing PHP packages..."
-    sudo add-apt-repository ppa:ondrej/php -y
-    sudo apt update
-    sudo apt install php8.0 libapache2-mod-php8.0 php8.0-cli php8.0-curl php8.0-common php8.0-intl \
-    php8.0-gd php8.0-mbstring php8.0-mysqli php8.0-pdo php8.0-mysql php8.0-xml php8.0-zip \
-    php8.0-imap php8.0-ldap php8.0-curl php8.0-soap php8.0-bcmath php8.0-opcache -y
+    
+    case "$OS" in
+        ubuntu)
+            echo "OS $OS"
+            sudo add-apt-repository ppa:ondrej/php -y
+            sudo apt update
+            sudo apt install php8.0 libapache2-mod-php8.0 php8.0-cli php8.0-curl php8.0-common php8.0-intl \
+            php8.0-gd php8.0-mbstring php8.0-mysqli php8.0-pdo php8.0-mysql php8.0-xml php8.0-zip \
+            php8.0-imap php8.0-ldap php8.0-curl php8.0-soap php8.0-bcmath php8.0-opcache -y
+
+        debian)
+            echo "OS $OS"
+            curl -sSLo /usr/share/keyrings/deb.sury.org-php.gpg https://packages.sury.org/php/apt.gpg
+            sh -c 'echo "deb [signed-by=/usr/share/keyrings/deb.sury.org-php.gpg] https://packages.sury.org/php/ $(lsb_release -sc) main" > /etc/apt/sources.list.d/php.list'
+            apt update && \
+            apt install php8.0 libapache2-mod-php8.0 php8.0-cli php8.0-curl php8.0-common php8.0-intl \
+            php8.0-gd php8.0-mbstring php8.0-mysqli php8.0-pdo php8.0-mysql php8.0-xml php8.0-zip \
+            php8.0-imap php8.0-ldap php8.0-curl php8.0-soap php8.0-bcmath php8.0-opcache -y
+    esac
+    
+ 
 
     # Apache configuration
     echo "Configuring Apache Server..."
