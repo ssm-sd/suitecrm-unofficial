@@ -1,6 +1,8 @@
 # SuiteCRM Installation Script
 
-This repository contains a script to automate the installation of SuiteCRM version 7.12 on Ubuntu and Debian systems. The script configures necessary dependencies, sets up the web server, and optimizes permissions to ensure a smooth SuiteCRM installation.
+This repository contains a script to automate the installation of SuiteCRM version 7.12 and migrating to version 8.2.0 on Ubuntu and Debian systems. These scripts automate the setup of necessary dependencies, web server configuration, and data migration to streamline the installation and upgrade processes.. 
+The script configures necessary dependencies, sets up the web server, and optimizes permissions to ensure a smooth SuiteCRM installation.
+
 
 ## Supported Operating Systems
 
@@ -39,6 +41,17 @@ Before starting the installation process, ensure you have:
 4. **Access SuiteCRM:**
    - Open a web browser and navigate to: `http://<your-server-ip-or-domain>`
    - Complete the web-based setup using the credentials provided by the script.
+   
+## Migration Steps
+
+To migrate from SuiteCRM 7.12 to 8.2.0:
+
+1. **Run the migration script:**
+   ```bash
+   bash suitecrm_migrate.sh
+   ```
+
+   - Ensure your SuiteCRM installation is backed up before starting the migration.
 
 ## Post-Installation Instructions
 
@@ -46,8 +59,8 @@ After completing the web-based setup, ensure that the following additional confi
 
 - Set directory permissions:
   ```bash
-  sudo chmod -R 775 /var/www/html
-  sudo chown -R www-data:www-data /var/www/html
+  sudo chmod -R 775 <your project directory>
+  sudo chown -R www-data:www-data <your project directory>
   ```
 
 ## Troubleshooting
