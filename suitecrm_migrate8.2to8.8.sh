@@ -21,36 +21,24 @@ fi
 migration_suitecrm() {
     echo "Migration SuiteCRM..."
     cd /var/www/$DOMAIN_DIR/tmp/package/upgrade
-    #mkdir -p scrm8_8
-    #cd /var/www/scrm8_8/
     wget https://github.com/salesagility/SuiteCRM-Core/releases/download/v8.8.0/SuiteCRM-8.8.0.zip
-    #unzip SuiteCRM-8.8.0.zip
-    #rm SuiteCRM-8.8.0.zip
-    #mkdir -p /var/www/scrm8_8/public/legacy
-    #scp -rp $DOMAIN_DIR/* /var/www/scrm8_8/public/legacy/
-    #cd /var/www/scrm8_8/
     cd /var/www/$DOMAIN_DIR
     chmod +x bin/console
     ./bin/console suitecrm:app:upgrade -t SuiteCRM-8.8.0
-    #grep -rl "$DOMAIN_DIR" /etc/apache2/sites-enabled/$DOMAIN_NAME.conf | xargs sed -i "s#$DOMAIN_DIR#${DOMAIN_DIR}/public#g"
     ./bin/console suitecrm:app:upgrade-finalize -t SuiteCRM-8.8.0
-    #./bin/console suitecrm:app:upgrade-finalize
     ./bin/console suitecrm:app:upgrade-finalize -m keep
-    #cd /var/www/
-    #mv $DOMAIN_DIR $DOMAIN_DIR-old7.12
-    #mv /var/www/scrm8_8 $DOMAIN_DIR
     chown -R www-data:www-data $DOMAIN_DIR
     chmod -R 755 $DOMAIN_DIR
-    sudo find $DOMAIN_DIR -type d -exec chmod 755 {} \;
-    sudo find $DOMAIN_DIR -type f -exec chmod 644 {} \;
-    sudo chmod -R 775 /$DOMAIN_DIR/cache
-    sudo chmod -R 775 $DOMAIN_DIR/public/legacy/cache
-    sudo chmod -R 775 $DOMAIN_DIR/public/legacy/custom
-    sudo chmod -R 775 $DOMAIN_DIR/public/legacy/modules
-    sudo chmod -R 775 $DOMAIN_DIR/public/legacy/upload
-    sudo chmod 775 $DOMAIN_DIR/public/legacy/config.php
-    sudo chmod 775 $DOMAIN_DIR/public/legacy/config_override.php
-    sudo systemctl restart apache2.service
+    find $DOMAIN_DIR -type d -exec chmod 755 {} \;
+    find $DOMAIN_DIR -type f -exec chmod 644 {} \;
+    chmod -R 775 /$DOMAIN_DIR/cache
+    chmod -R 775 $DOMAIN_DIR/public/legacy/cache
+    chmod -R 775 $DOMAIN_DIR/public/legacy/custom
+    chmod -R 775 $DOMAIN_DIR/public/legacy/modules
+    chmod -R 775 $DOMAIN_DIR/public/legacy/upload
+    chmod 775 $DOMAIN_DIR/public/legacy/config.php
+    chmod 775 $DOMAIN_DIR/public/legacy/config_override.php
+    systemctl restart apache2.service
     echo "apache2 has been restarted"
 }
 

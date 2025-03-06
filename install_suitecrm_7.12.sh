@@ -10,19 +10,30 @@ detect_os() {
         OS=$ID
         VERSION=$VERSION_ID
     else
-        echo "Unable to detect OS. Only Ubuntu 24.04, 22.04, Debian 11, 12"
+        echo "Unable to detect OS. This script supports only Ubuntu 24.04, 22.04, Debian 11, 12."
         exit 1
     fi
 
     case "$OS" in
-        ubuntu|debian)
-            echo "OS $OS $VERSION is supported."
+        ubuntu)
+            if [[ "$VERSION" != "24.04" && "$VERSION" != "22.04" ]]; then
+                echo "Ubuntu version $VERSION is not supported. Supported versions are 24.04 and 22.04."
+                exit 1
+            fi
+            ;;
+        debian)
+            if [[ "$VERSION" != "11" && "$VERSION" != "12" ]]; then
+                echo "Debian version $VERSION is not supported. Supported versions are 11 and 12."
+                exit 1
+            fi
             ;;
         *)
             echo "OS $OS is not supported. Exiting."
             exit 1
             ;;
     esac
+
+    echo "OS $OS $VERSION is supported."
 }
 
 get_input() {
@@ -190,38 +201,35 @@ install_suitecrm() {
     fi
 
     # User input collection
+    db_name=$(get_input "Enter your MariaDB database name1")
     db_user=$(get_input "Enter your MariaDB username")
     db_pass=$(get_input "Enter your MariaDB password")
     
     
     # System updates and essential packages
     echo "Updating and installing essential packages..."
-    sudo apt update && sudo apt upgrade -y
-    sudo apt install unzip wget curl apache2 dialog -y
+    apt update && apt upgrade -y
+    apt install unzip wget curl apache2 dialog -y
 
     # PHP installation and configuration
     echo "Updating and installing PHP packages..."
     
     case "$OS" in
         ubuntu)
-            echo "OS $OS"
-            sudo add-apt-repository ppa:ondrej/php -y
-            sudo apt update
-            sudo apt install php8.0 libapache2-mod-php8.0 php8.0-cli php8.0-curl php8.0-common php8.0-intl \
-            php8.0-gd php8.0-mbstring php8.0-mysqli php8.0-pdo php8.0-mysql php8.0-xml php8.0-zip \
-            php8.0-imap php8.0-ldap php8.0-curl php8.0-soap php8.0-bcmath php8.0-opcache -y
+            add-apt-repository ppa:ondrej/php -y
+            apt update
+            ;;
 
         debian)
-            echo "OS $OS"
             curl -sSLo /usr/share/keyrings/deb.sury.org-php.gpg https://packages.sury.org/php/apt.gpg
             sh -c 'echo "deb [signed-by=/usr/share/keyrings/deb.sury.org-php.gpg] https://packages.sury.org/php/ $(lsb_release -sc) main" > /etc/apt/sources.list.d/php.list'
-            apt update && \
-            apt install php8.0 libapache2-mod-php8.0 php8.0-cli php8.0-curl php8.0-common php8.0-intl \
-            php8.0-gd php8.0-mbstring php8.0-mysqli php8.0-pdo php8.0-mysql php8.0-xml php8.0-zip \
-            php8.0-imap php8.0-ldap php8.0-curl php8.0-soap php8.0-bcmath php8.0-opcache -y
+            apt update 
+            ;;
     esac
     
- 
+    apt install php8.0 libapache2-mod-php8.0 php8.0-cli php8.0-curl php8.0-common php8.0-intl \
+    php8.0-gd php8.0-mbstring php8.0-mysqli php8.0-pdo php8.0-mysql php8.0-xml php8.0-zip \
+    php8.0-imap php8.0-ldap php8.0-curl php8.0-soap php8.0-bcmath php8.0-opcache -y
 
     # Apache configuration
     echo "Configuring Apache Server..."
@@ -230,14 +238,14 @@ install_suitecrm() {
 
     # MariaDB installation and configuration
     echo "Installing MariaDB..."
-    sudo apt install mariadb-server mariadb-client -y
+    apt install mariadb-server mariadb-client -y
 
     # Database setup
     echo "Configuring main database..."
-    sudo mysql -u root <<EOF
-    CREATE DATABASE IF NOT EXISTS suitecrm CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+    mysql -u root <<EOF
+    CREATE DATABASE IF NOT EXISTS $db_name CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
     CREATE USER IF NOT EXISTS '$db_user'@'localhost' IDENTIFIED BY '$db_pass';
-    GRANT ALL PRIVILEGES ON suitecrm.* TO '$db_user'@'localhost';
+    GRANT ALL PRIVILEGES ON $db_name.* TO '$db_user'@'localhost';
     FLUSH PRIVILEGES;
 EOF
 
@@ -277,10 +285,10 @@ EOF
 
 
     # Special directories creation and permissions
-    sudo -u www-data mkdir -p $PROJECT_DIR/cache/{images,modules,pdf,upload,xml,themes}
-    sudo -u www-data mkdir -p $PROJECT_DIR/custom
-    sudo -u www-data touch $PROJECT_DIR/config.php
-    sudo -u www-data touch $PROJECT_DIR/config_override.php
+    su -u www-data mkdir -p $PROJECT_DIR/cache/{images,modules,pdf,upload,xml,themes}
+    su -u www-data mkdir -p $PROJECT_DIR/custom
+    su -u www-data touch $PROJECT_DIR/config.php
+    su -u www-data touch $PROJECT_DIR/config_override.php
     
     # Create main .htaccess
     cat << EOF | tee $PROJECT_DIR/.htaccess
@@ -302,8 +310,8 @@ EOF
 EOF
 
     # Set proper ownership and permissions for .htaccess
-    sudo chown www-data:www-data  $PROJECT_DIR/.htaccess
-    sudo chmod 644 $PROJECT_DIR/.htaccess
+    chown www-data:www-data  $PROJECT_DIR/.htaccess
+    chmod 644 $PROJECT_DIR/.htaccess
     
     # Apache configuration verification and restart
     if ! /usr/sbin/apachectl configtest; then
@@ -323,38 +331,61 @@ EOF
     chmod 775 $PROJECT_DIR/config.php
     chmod 775 $PROJECT_DIR/config_override.php
     
-    # Installation complete message
+    # Installation complete
     echo ""
     echo "###################################################"
-    echo "Installation completed!"
-    echo "The script has finished. Before opening the web browser, you must run:"
+    echo "Installation SuiteCRM has been completed!"
+    echo "The script has finished. Before opening the web browser, you can run:"
     echo ""
-    echo " sudo mysql_secure_installation "
+    echo "mysql_secure_installation "
     echo ""
     echo "To access the web installation page:"
     echo "2. Access your SuiteCRM installation at: http://$CONFIG_NAME"
     echo "3. Complete the web-based setup using these database credentials:"
     echo ""
-    echo "   Database Name: suitecrm"
-    echo "   Database User: $db_user"
-    echo "   Database Password: $db_pass"
+    echo " Database Name: $db_name"
+    echo " Database User: $db_user"
+    echo " Database Password: $db_pass"
     echo ""
     echo "If you encounter 'Forbidden error' while opening the webpage, run in your terminal:"
-    echo "sudo chmod -R 775 /var/www/html"
-    echo "sudo chown -R www-data:www-data /var/www/html"
+    echo "chmod -R 775 /var/www/html"
+    echo "chown -R www-data:www-data /var/www/html"
     echo ""
-    echo "Installation SuiteCRM has been completed!"
+    
 
 }
 
 ########################################################################
 # Function to update SSL certificates using Let's Encrypt
 update_ssl() {
+    echo "Checking for Certbot installation..."
+
+    # Check if certbot is installed
+    if ! command -v certbot &> /dev/null; then
+        echo "Certbot is not installed. Please install Certbot to manage SSL certificates."
+        exit 1
+    fi
+
+    echo "Certbot is installed. Proceeding with SSL certificate update..."
+
+    # Check if there are any Let's Encrypt certificates
+    if [[ ! -d /etc/letsencrypt/live ]]; then
+        echo "No Let's Encrypt certificates found. Please ensure certificates are set up first."
+        exit 1
+    fi
+
     echo "Updating SSL certificates with Let's Encrypt..."
-    # Replace with your actual domain and web server reload command
-    certbot renew --quiet
-    systemctl reload nginx  # Change to apache2 if using Apache
-    echo "SSL certificate update complete."
+
+    # Attempt to renew certificates
+    if certbot renew --quiet; then
+        echo "SSL certificates renewed successfully."
+        echo "Reloading Apache to apply changes..."
+        systemctl reload apache2
+        echo "Apache reloaded. SSL certificate update complete."
+    else
+        echo "Failed to renew SSL certificates. Please check Certbot logs for details."
+        exit 1
+    fi
 }
 
 ########################################################################
