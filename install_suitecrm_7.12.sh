@@ -201,7 +201,7 @@ install_suitecrm() {
     fi
 
     # User input collection
-    db_name=$(get_input "Enter your MariaDB database name1")
+    db_name=$(get_input "Enter your MariaDB database name")
     db_user=$(get_input "Enter your MariaDB username")
     db_pass=$(get_input "Enter your MariaDB password")
     
