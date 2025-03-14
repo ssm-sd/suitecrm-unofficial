@@ -536,9 +536,7 @@ main_menu() {
     CHOICE=$(gum choose "Install SuiteCRM" "Update SSL with Let's Encrypt" "Create Full Backup (DB & Site)" "Log out")
     case "$CHOICE" in
         "Install SuiteCRM")
-            #install_docker
             install_suitecrm
-            #ask_domain
             ;;
         "Update SSL with Let's Encrypt")
             update_ssl
