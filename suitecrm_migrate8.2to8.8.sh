@@ -20,6 +20,9 @@ fi
 
 migration_suitecrm() {
     echo "Migration SuiteCRM..."
+    apt install php8.3 libapache2-mod-php8.3 php8.3-cli php8.3-curl php8.3-common php8.3-intl php8.3-gd php8.3-mbstring php8.3-mysqli php8.3-pdo php8.3-mysql php8.3-xml php8.3-zip php8.3-imap php8.3-ldap php8.3-curl php8.3-soap php8.3-bcmath php8.3-opcache -y
+    a2dismod php8.0
+    a2enmod php8.3
     cd /var/www/$DOMAIN_DIR/tmp/package/upgrade
     wget https://github.com/salesagility/SuiteCRM-Core/releases/download/v8.8.0/SuiteCRM-8.8.0.zip
     cd /var/www/$DOMAIN_DIR
@@ -32,12 +35,6 @@ migration_suitecrm() {
     find $DOMAIN_DIR -type d -exec chmod 755 {} \;
     find $DOMAIN_DIR -type f -exec chmod 644 {} \;
     chmod -R 775 /$DOMAIN_DIR/cache
-    chmod -R 775 $DOMAIN_DIR/public/legacy/cache
-    chmod -R 775 $DOMAIN_DIR/public/legacy/custom
-    chmod -R 775 $DOMAIN_DIR/public/legacy/modules
-    chmod -R 775 $DOMAIN_DIR/public/legacy/upload
-    chmod 775 $DOMAIN_DIR/public/legacy/config.php
-    chmod 775 $DOMAIN_DIR/public/legacy/config_override.php
     systemctl restart apache2.service
     echo "apache2 has been restarted"
 }

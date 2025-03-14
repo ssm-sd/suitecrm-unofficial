@@ -26,7 +26,7 @@ Before starting the installation process, ensure you have:
 
 2. **Run the installation script:**
    ```bash
-   bash install_suitecrm_7.12.sh
+   bash install_suitecrm.sh
    ```
 
    The script will prompt for the database username and password:
@@ -44,7 +44,7 @@ Before starting the installation process, ensure you have:
    
 ## Migration Steps
 
-To migrate from SuiteCRM 7.12 to 8.2.0:
+To migrate from SuiteCRM 7.xx to 8.2.0:
 
 1. **Run the migration script:**
    ```bash
