@@ -91,7 +91,7 @@ letsencrypt_ssl() {
         mkdir -p $PROJECT_DIR
     fi
     letsencrypt_email=$(get_input "Please enter your email")
-    certbot certonly --webroot -w $PROJECT_DIR -d "$DOMAIN" --non-interactive --agree-tos -m "$letsencrypt_email" || { 
+    certbot certonly --webroot -w $PROJECT_DIR -d "$DOMAIN_NAME" --non-interactive --agree-tos -m "$letsencrypt_email" || { 
         gum style --foreground 196 "Error generation, using self-signed! Please pay attention on it because it can lead to problem with installation SuiteCRM version 8.xx.xx"
         selfsigned_ssl
     }
