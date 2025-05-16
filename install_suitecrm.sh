@@ -94,7 +94,13 @@ letsencrypt_ssl() {
     certbot certonly --standalone -d "$DOMAIN_NAME" --non-interactive --agree-tos -m "$letsencrypt_email" || { 
         gum style --foreground 196 "Error generation, using self-signed! Please pay attention on it because it can lead to problem with installation SuiteCRM version 8.xx.xx"
         selfsigned_ssl
+        #return 1
     }
+    
+    # Extract cert and key locations from the symbolic links certbot creates
+    SSL_CERT="/etc/letsencrypt/live/$DOMAIN_NAME/fullchain.pem"
+    SSL_KEY="/etc/letsencrypt/live/$DOMAIN_NAME/privkey.pem"
+    #return 0
 }
 
 selfsigned_ssl() {
