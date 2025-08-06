@@ -220,52 +220,174 @@ install_suitecrm() {
     
     fetch_releases() {
         local repo=$1
-        curl -s "https://api.github.com/repos/salesagility/$repo/releases" | \
-        jq -r '.[] | select(.prerelease == false) | .tag_name'
+        local response
+        local curl_args=("-s" "--connect-timeout" "10" "--retry" "3" "--retry-delay" "2")
+        
+        # Fetch releases
+        response=$(curl "${curl_args[@]}" "https://api.github.com/repos/SuiteCRM/$repo/releases")
+        
+        # Check if response is empty
+        if [[ -z "$response" ]]; then
+            gum style --foreground 196 "Error: No response from GitHub API for $repo."
+            return 1
+        fi
+
+        # Check for GitHub API errors
+        if echo "$response" | grep -q "message"; then
+            local error_msg=$(echo "$response" | jq -r '.message // "Unknown error"')
+            gum style --foreground 196 "Error: GitHub API returned an error for $repo: $error_msg"
+            return 1
+        fi
+
+        # Parse releases, handling cases where prerelease field might be missing
+        local releases
+        releases=$(echo "$response" | jq -r '.[] | select(.prerelease == false or .prerelease == null) | .tag_name' 2>/dev/null)
+        if [[ $? -ne 0 || -z "$releases" ]]; then
+            gum style --foreground 196 "Error: Failed to parse releases for $repo or no non-prerelease versions found."
+            # Debug: Save raw API response to a file
+            echo "$response" > "debug_$repo_response.json"
+            gum style --foreground 46 "Saved raw API response to debug_$repo_response.json for inspection."
+            return 1
+        fi
+        echo "$releases"
     }
     
-    # Fetch SuiteCRM 8 releases
-    gum style --foreground 46 "Fetching SuiteCRM 8 releases..."
-    suitecrm8_releases=$(fetch_releases "SuiteCRM-Core")
-
-    # Fetch SuiteCRM 7 releases
-    gum style --foreground 46 "Fetching SuiteCRM 7 releases..."
-    suitecrm7_releases=$(fetch_releases "SuiteCRM")
-
-    # Combine and sort releases
-    all_releases=$(echo -e "$suitecrm8_releases\n$suitecrm7_releases" | sort -Vr)
-
-    # Let the user choose a release
-    gum style --foreground 46 "Please select a SuiteCRM version to install (or press Escape to exit):"
-    selected_release=$(gum choose $all_releases)
-    gum style --foreground 46 "Will be use version $selected_release"
-
-    # Check if the user pressed Escape or canceled the selection
-    if [ -z "$selected_release" ]; then
-        gum style --foreground 46 "No version selected. Exiting..."
-        exit 1
-    fi
-
-    # Determine the repository based on the selected release
-    if [[ $selected_release == v8* ]]; then
-        repo="SuiteCRM-Core"
-    else
-        repo="SuiteCRM"
-    fi
-
-    # Download the selected release
-    mkdir -p $PROJECT_DIR
-    download_url="https://github.com/salesagility/$repo/releases/download/$selected_release/SuiteCRM-${selected_release#v}.zip"
-    gum style --foreground 46 "Downloading SuiteCRM $selected_release from $download_url..."
-    curl -L -o "$PROJECT_DIR/SuiteCRM-${selected_release#v}.zip" "$download_url"
-
-    # Check if the download was successful
-    if [ $? -eq 0 ]; then
-        gum style --foreground 46 "Download completed successfully: SuiteCRM-${selected_release#v}.zip to $PROJECT_DIR"
-    else
-        gum style --foreground 196 "Failed to download SuiteCRM $selected_release."
-    fi
     
+    # Function to fetch the download URL for a specific release
+    fetch_release_asset() {
+        local repo=$1
+        local tag=$2
+        local curl_args=("-s" "--connect-timeout" "10" "--retry" "3" "--retry-delay" "2")
+        
+        local response
+        response=$(curl "${curl_args[@]}" "https://api.github.com/repos/SuiteCRM/$repo/releases/tags/$tag")
+        if [[ -z "$response" ]]; then
+            gum style --foreground 196 "Error: No response from GitHub API for $repo release $tag."
+            return 1
+        fi
+
+        # Check for API errors
+        if echo "$response" | grep -q "message"; then
+            local error_msg=$(echo "$response" | jq -r '.message // "Unknown error"')
+            gum style --foreground 196 "Error: GitHub API returned an error for $repo release $tag: $error_msg"
+            return 1
+        fi
+
+        # Find the main .zip asset (e.g., SuiteCRM-8.8.0.zip, not migration or dev packages)
+        local asset_url
+        asset_url=$(echo "$response" | jq -r --arg tag "${tag#v}" '.assets[] | select(.name == "SuiteCRM-" + $tag + ".zip") | .browser_download_url' 2>/dev/null)
+        if [[ -z "$asset_url" ]]; then
+            gum style --foreground 196 "Error: No main .zip asset (SuiteCRM-${tag#v}.zip) found for $repo release $tag."
+            # Debug: List all available assets
+            local available_assets
+            available_assets=$(echo "$response" | jq -r '.assets[] | .name' 2>/dev/null)
+            gum style --foreground 46 "Available assets for $tag: $available_assets"
+            return 1
+        fi
+        echo "$asset_url"
+    }
+    
+    # Function to fetch versions from SuiteCRM website as a fallback
+    fetch_suitecrm_website_versions() {
+        gum style --foreground 46 "Fetching versions from SuiteCRM website as fallback..."
+        local response
+        response=$(curl -s --connect-timeout 10 --retry 3 --retry-delay 2 "https://suitecrm.com/files")
+        if [[ -z "$response" ]]; then
+            gum style --foreground 196 "Error: Failed to fetch versions from SuiteCRM website."
+            return 1
+        fi
+
+        # Extract version numbers (e.g., 7.14.6, 8.8.0) from file links
+        local versions
+        versions=$(echo "$response" | grep -oP 'SuiteCRM-\K[0-9]+\.[0-9]+\.[0-9]+(?=\.zip)' | sort -Vr)
+        if [[ -z "$versions" ]]; then
+            gum style --foreground 196 "Error: No versions found on SuiteCRM website."
+            return 1
+        fi
+        echo "$versions"
+    }
+
+    # Main function to download SuiteCRM
+        gum style --foreground 46 "Fetching SuiteCRM releases..."
+
+        # Fetch SuiteCRM 8 releases
+        gum style --foreground 46 "Fetching SuiteCRM 8 releases..."
+        suitecrm8_releases=$(fetch_releases "SuiteCRM-Core")
+        if [[ $? -ne 0 || -z "$suitecrm8_releases" ]]; then
+            gum style --foreground 196 "No SuiteCRM 8 releases found or failed to fetch."
+            suitecrm8_releases=""
+        fi
+
+        # Fetch SuiteCRM 7 releases
+        gum style --foreground 46 "Fetching SuiteCRM 7 releases..."
+        suitecrm7_releases=$(fetch_releases "SuiteCRM")
+        if [[ $? -ne 0 || -z "$suitecrm7_releases" ]]; then
+            gum style --foreground 196 "No SuiteCRM 7 releases found or failed to fetch."
+            suitecrm7_releases=""
+        fi
+
+        # Combine and sort releases
+        all_releases=$(echo -e "$suitecrm8_releases\n$suitecrm7_releases" | sort -Vr | grep .)
+        if [[ -z "$all_releases" ]]; then
+            gum style --foreground 46 "No GitHub releases found. Falling back to SuiteCRM website..."
+            all_releases=$(fetch_suitecrm_website_versions)
+            if [[ $? -ne 0 || -z "$all_releases" ]]; then
+                gum style --foreground 196 "Error: No releases available from GitHub or SuiteCRM website."
+                exit 1
+            fi
+            use_website=true
+        else
+            use_website=false
+        fi
+
+        # Let the user choose a release
+        gum style --foreground 46 "Please select a SuiteCRM version to download (or press Escape to exit):"
+        selected_release=$(echo "$all_releases" | gum choose)
+        if [[ -z "$selected_release" ]]; then
+            gum style --foreground 46 "No version selected. Exiting..."
+            exit 1
+        fi
+        gum style --foreground 46 "Selected version: $selected_release"
+
+        # Set download directory
+        #DOWNLOAD_DIR="$PWD/suitecrm_downloads"
+        mkdir -p $PROJECT_DIR
+
+        # Construct download URL
+        local download_url output_file
+        if [[ "$use_website" == true ]]; then
+            download_url="https://suitecrm.com/files/SuiteCRM-$selected_release.zip"
+            repo="SuiteCRM"  # Default to SuiteCRM repo for naming
+            if [[ $selected_release == 8* ]]; then
+                repo="SuiteCRM-Core"
+            fi
+            output_file="$PROJECT_DIR/SuiteCRM-$selected_release.zip"
+        else
+            # Determine the repository based on the selected release
+            if [[ $selected_release == v8* ]]; then
+                repo="SuiteCRM-Core"
+            else
+                repo="SuiteCRM"
+            fi
+            # Fetch the correct asset URL
+            download_url=$(fetch_release_asset "$repo" "$selected_release")
+            if [[ $? -ne 0 || -z "$download_url" ]]; then
+                gum style --foreground 196 "Error: Failed to fetch download URL for $repo release $selected_release."
+                exit 1
+            fi
+            output_file="$PROJECT_DIR/SuiteCRM-${selected_release#v}.zip"
+        fi
+        gum style --foreground 46 "Downloading SuiteCRM $selected_release from $download_url..."
+
+        # Download the selected release
+        local curl_args=("-L" "--connect-timeout" "10" "--retry" "3" "--retry-delay" "2" "-o" "$output_file" "$download_url")
+        curl "${curl_args[@]}"
+        if [[ $? -eq 0 ]]; then
+            gum style --foreground 46 "Download completed successfully: $output_file"
+        else
+            gum style --foreground 196 "Failed to download SuiteCRM $selected_release."
+            exit 1
+        fi
 
     # User input collection
     db_name=$(get_input "Enter your MariaDB database name")
